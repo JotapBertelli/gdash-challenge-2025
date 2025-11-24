@@ -1,0 +1,26 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { WeatherModule } from './weather/weather.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        uri: config.get<string>('MONGO_URI', 'mongodb://localhost:27017/gdash'),
+      }),
+    }),
+    WeatherModule,
+    UsersModule,
+    AuthModule,
+  ],
+})
+export class AppModule {}
+
+
