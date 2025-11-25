@@ -40,3 +40,4 @@ async def test_weather_fetch():
 if __name__ == "__main__":
     asyncio.run(test_weather_fetch())
 
+
