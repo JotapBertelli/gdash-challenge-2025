@@ -27,7 +27,8 @@
     "rimraf": "^5.0.7",
     "rxjs": "^7.8.1",
     "csv-stringify": "^6.0.0",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "openai": "^4.20.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.2",

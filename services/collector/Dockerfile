@@ -4,6 +4,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src ./src
 ENV PYTHONPATH=/app/src
-CMD ["python", "-m", "src"]
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-u", "-m", "src"]
 
 
