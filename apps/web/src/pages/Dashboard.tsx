@@ -133,6 +133,298 @@ function AnimatedSunIcon({ className }: { className?: string }) {
   );
 }
 
+// Componente de ícone SVG de nuvem animada (Nublado)
+function AnimatedCloudyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <style>
+        {`
+          @keyframes float {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+          }
+          @keyframes float-reverse {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(-5px); }
+          }
+        `}
+      </style>
+      {/* Nuvem de fundo */}
+      <g style={{ animation: 'float 4s ease-in-out infinite' }}>
+        <ellipse cx="35" cy="55" rx="18" ry="14" fill="#94A3B8" />
+        <ellipse cx="55" cy="48" rx="22" ry="18" fill="#94A3B8" />
+        <ellipse cx="70" cy="58" rx="16" ry="12" fill="#94A3B8" />
+        <rect x="25" y="52" width="55" height="16" fill="#94A3B8" />
+      </g>
+      {/* Nuvem principal */}
+      <g style={{ animation: 'float-reverse 3s ease-in-out infinite' }}>
+        <ellipse cx="30" cy="60" rx="20" ry="16" fill="#CBD5E1" />
+        <ellipse cx="50" cy="50" rx="25" ry="20" fill="#CBD5E1" />
+        <ellipse cx="72" cy="60" rx="18" ry="14" fill="#CBD5E1" />
+        <rect x="20" y="56" width="60" height="18" fill="#CBD5E1" />
+      </g>
+    </svg>
+  );
+}
+
+// Componente de ícone SVG de chuva animada
+function AnimatedRainyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <style>
+        {`
+          @keyframes rain-drop {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(25px); opacity: 0; }
+          }
+        `}
+      </style>
+      {/* Nuvem */}
+      <g>
+        <ellipse cx="30" cy="35" rx="18" ry="14" fill="#64748B" />
+        <ellipse cx="50" cy="28" rx="22" ry="18" fill="#64748B" />
+        <ellipse cx="70" cy="35" rx="16" ry="12" fill="#64748B" />
+        <rect x="20" y="32" width="60" height="14" fill="#64748B" />
+      </g>
+      {/* Gotas de chuva */}
+      {[
+        { x: 25, delay: '0s' },
+        { x: 40, delay: '0.3s' },
+        { x: 55, delay: '0.6s' },
+        { x: 70, delay: '0.2s' },
+        { x: 32, delay: '0.5s' },
+        { x: 62, delay: '0.4s' },
+      ].map((drop, i) => (
+        <line
+          key={i}
+          x1={drop.x}
+          y1="52"
+          x2={drop.x}
+          y2="62"
+          stroke="#60A5FA"
+          strokeWidth="3"
+          strokeLinecap="round"
+          style={{
+            animation: `rain-drop 0.8s linear infinite`,
+            animationDelay: drop.delay,
+          }}
+        />
+      ))}
+    </svg>
+  );
+}
+
+// Componente de ícone SVG de trovoada animada
+function AnimatedStormIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <style>
+        {`
+          @keyframes lightning {
+            0%, 90%, 100% { opacity: 0; }
+            92%, 94%, 96% { opacity: 1; }
+            93%, 95% { opacity: 0.3; }
+          }
+          @keyframes storm-rain {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(20px); opacity: 0; }
+          }
+          @keyframes rumble {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-1px); }
+            75% { transform: translateX(1px); }
+          }
+        `}
+      </style>
+      {/* Nuvem escura */}
+      <g style={{ animation: 'rumble 0.3s ease-in-out infinite' }}>
+        <ellipse cx="30" cy="30" rx="18" ry="14" fill="#475569" />
+        <ellipse cx="50" cy="22" rx="24" ry="20" fill="#475569" />
+        <ellipse cx="72" cy="30" rx="18" ry="14" fill="#475569" />
+        <rect x="18" y="26" width="64" height="16" fill="#475569" />
+      </g>
+      {/* Raio */}
+      <polygon
+        points="50,42 42,58 48,58 44,78 58,52 50,52 56,42"
+        fill="#FBBF24"
+        style={{ animation: 'lightning 2s ease-in-out infinite' }}
+      />
+      {/* Gotas de chuva */}
+      {[
+        { x: 22, delay: '0s' },
+        { x: 35, delay: '0.2s' },
+        { x: 65, delay: '0.15s' },
+        { x: 78, delay: '0.3s' },
+      ].map((drop, i) => (
+        <line
+          key={i}
+          x1={drop.x}
+          y1="48"
+          x2={drop.x}
+          y2="56"
+          stroke="#60A5FA"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          style={{
+            animation: `storm-rain 0.6s linear infinite`,
+            animationDelay: drop.delay,
+          }}
+        />
+      ))}
+    </svg>
+  );
+}
+
+// Componente de ícone SVG de lua animada (Noite)
+function AnimatedMoonIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <style>
+        {`
+          @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1); }
+          }
+          @keyframes moon-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(253, 230, 138, 0.5)); }
+            50% { filter: drop-shadow(0 0 15px rgba(253, 230, 138, 0.8)); }
+          }
+        `}
+      </style>
+      {/* Estrelas */}
+      {[
+        { x: 20, y: 25, delay: '0s', size: 2 },
+        { x: 75, y: 20, delay: '0.5s', size: 2.5 },
+        { x: 85, y: 45, delay: '1s', size: 1.5 },
+        { x: 15, y: 60, delay: '0.7s', size: 2 },
+        { x: 30, y: 15, delay: '1.2s', size: 1.5 },
+      ].map((star, i) => (
+        <circle
+          key={i}
+          cx={star.x}
+          cy={star.y}
+          r={star.size}
+          fill="#FDE68A"
+          style={{
+            animation: `twinkle 2s ease-in-out infinite`,
+            animationDelay: star.delay,
+          }}
+        />
+      ))}
+      {/* Lua */}
+      <g style={{ animation: 'moon-glow 3s ease-in-out infinite' }}>
+        <circle cx="55" cy="50" r="25" fill="#FDE68A" />
+        <circle cx="45" cy="50" r="22" fill="#1E293B" />
+      </g>
+    </svg>
+  );
+}
+
+// Componente de ícone SVG de parcialmente nublado animado
+function AnimatedPartlyCloudyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <style>
+        {`
+          @keyframes cloud-drift {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(3px); }
+          }
+          @keyframes sun-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
+        `}
+      </style>
+      {/* Sol atrás */}
+      <g style={{ animation: 'sun-pulse 3s ease-in-out infinite' }}>
+        {[...Array(8)].map((_, i) => (
+          <line
+            key={i}
+            x1="30"
+            y1="15"
+            x2="30"
+            y2="22"
+            stroke="#FCD34D"
+            strokeWidth="3"
+            strokeLinecap="round"
+            transform={`rotate(${i * 45} 30 35)`}
+          />
+        ))}
+        <circle cx="30" cy="35" r="14" fill="#FBBF24" />
+      </g>
+      {/* Nuvem na frente */}
+      <g style={{ animation: 'cloud-drift 4s ease-in-out infinite' }}>
+        <ellipse cx="45" cy="60" rx="20" ry="14" fill="#E2E8F0" />
+        <ellipse cx="65" cy="52" rx="22" ry="16" fill="#E2E8F0" />
+        <ellipse cx="82" cy="60" rx="14" ry="10" fill="#E2E8F0" />
+        <rect x="35" y="56" width="55" height="14" fill="#E2E8F0" />
+      </g>
+    </svg>
+  );
+}
+
+// Função para determinar o ícone animado baseado nas condições climáticas
+function getAnimatedWeatherIcon(temp: number, humidity: number, windspeed: number, hour: number) {
+  const isNight = hour < 6 || hour >= 19;
+  
+  // Trovoada: umidade muito alta + vento forte
+  if (humidity > 85 && windspeed > 30) {
+    return <AnimatedStormIcon className="w-32 h-32" />;
+  }
+  
+  // Chuva: umidade alta
+  if (humidity > 80) {
+    return <AnimatedRainyIcon className="w-32 h-32" />;
+  }
+  
+  // Noite
+  if (isNight) {
+    if (humidity > 60) {
+      return <AnimatedCloudyIcon className="w-32 h-32" />;
+    }
+    return <AnimatedMoonIcon className="w-32 h-32" />;
+  }
+  
+  // Nublado: umidade média-alta ou temperatura mais baixa
+  if (humidity > 65 || temp < 20) {
+    return <AnimatedCloudyIcon className="w-32 h-32" />;
+  }
+  
+  // Parcialmente nublado
+  if (humidity > 50 && humidity <= 65) {
+    return <AnimatedPartlyCloudyIcon className="w-32 h-32" />;
+  }
+  
+  // Sol: tempo bom
+  return <AnimatedSunIcon className="w-32 h-32" />;
+}
+
+// Função para obter a descrição do clima
+function getWeatherDescription(temp: number, humidity: number, windspeed: number, hour: number): string {
+  const isNight = hour < 6 || hour >= 19;
+  
+  if (humidity > 85 && windspeed > 30) {
+    return 'Tempestade';
+  }
+  if (humidity > 80) {
+    return 'Chuvoso';
+  }
+  if (isNight) {
+    return humidity > 60 ? 'Noite Nublada' : 'Noite Clara';
+  }
+  if (humidity > 65 || temp < 20) {
+    return 'Nublado';
+  }
+  if (humidity > 50 && humidity <= 65) {
+    return 'Parcialmente Nublado';
+  }
+  if (temp > 30) {
+    return 'Muito Quente';
+  }
+  return 'Ensolarado';
+}
+
 // Função para obter ícone do alerta
 function getAlertIcon(type: string) {
   switch (type) {
@@ -351,10 +643,28 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Sun Icon */}
+              {/* Weather Icon - Dinâmico baseado nas condições */}
               <div className="flex flex-col items-center justify-center">
-                <AnimatedSunIcon className="w-32 h-32" />
-                <p className="text-xl font-medium mt-2">{analysis?.dayClassification || 'Ensolarado'}</p>
+                {current ? 
+                  getAnimatedWeatherIcon(
+                    current.temperature, 
+                    current.humidity, 
+                    current.windspeed, 
+                    new Date(current.ts).getHours()
+                  ) : 
+                  <AnimatedSunIcon className="w-32 h-32" />
+                }
+                <p className="text-xl font-medium mt-2">
+                  {current ? 
+                    getWeatherDescription(
+                      current.temperature, 
+                      current.humidity, 
+                      current.windspeed, 
+                      new Date(current.ts).getHours()
+                    ) : 
+                    'Aguardando...'
+                  }
+                </p>
               </div>
 
               {/* Stats Grid */}
