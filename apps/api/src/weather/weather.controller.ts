@@ -36,5 +36,11 @@ export class WeatherController {
     const buffer = await this.weatherService.exportXLSX();
     res.send(buffer);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('insights')
+  async getInsights() {
+    return this.weatherService.generateInsights();
+  }
 }
 

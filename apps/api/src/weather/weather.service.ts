@@ -2,15 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { stringify } from 'csv-stringify/sync';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
 import { CreateWeatherLogDto } from './dto/create-weather-log.dto';
 import { WeatherLog } from './schemas/weather-log.schema';
+import { AIService } from './ai.service';
 
 @Injectable()
 export class WeatherService {
   constructor(
     @InjectModel(WeatherLog.name)
     private readonly weatherModel: Model<WeatherLog>,
+    private readonly aiService: AIService,
   ) {}
 
   async create(payload: CreateWeatherLogDto): Promise<WeatherLog> {
@@ -64,6 +66,19 @@ export class WeatherService {
     });
 
     return (await workbook.xlsx.writeBuffer()) as ExcelJS.Buffer;
+  }
+
+  async generateInsights() {
+    const logs = await this.weatherModel.find().sort({ ts: -1 }).limit(100).lean();
+    // Converter para o formato esperado
+    const weatherData = logs.map((log) => ({
+      city: log.city,
+      ts: log.ts instanceof Date ? log.ts.toISOString() : String(log.ts),
+      temperature: log.temperature,
+      humidity: log.humidity,
+      windspeed: log.windspeed,
+    }));
+    return this.aiService.generateInsights(weatherData);
   }
 }
 
