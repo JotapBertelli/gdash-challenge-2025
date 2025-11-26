@@ -314,7 +314,7 @@ export default function Users() {
 
         {/* Footer */}
         <footer className="mt-8 text-center text-gray-500 text-sm">
-          <p>Weather Dashboard • GDASH Challenge 2025</p>
+          <p>Dashboard de Análise Climática • GDASH Challenge 2025</p>
         </footer>
       </div>
     </div>

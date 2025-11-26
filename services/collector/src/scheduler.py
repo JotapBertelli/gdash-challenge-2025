@@ -1,17 +1,13 @@
-import asyncio
 import json
 import os
+import subprocess
 import time
 from datetime import datetime, timezone
 
-import httpx
 import pika
 import schedule
 
 from .config import load_settings
-
-# Necessário importar asyncio.sleep
-import asyncio
 
 
 def publish_to_queue(message: str):
@@ -41,36 +37,57 @@ def publish_to_queue(message: str):
                 print(f"❌ Erro ao publicar na fila após {max_retries} tentativas: {e}")
 
 
-async def fetch_weather():
+def fetch_weather():
+    """Busca dados do clima usando OpenWeatherMap API"""
     settings = load_settings()
-    params = {
-        "latitude": settings.latitude,
-        "longitude": settings.longitude,
-        "hourly": ["temperature_2m", "relativehumidity_2m", "windspeed_10m"],
-        "current_weather": True,
-    }
     
-    # Retry com timeout maior
+    # Verifica se a API key está configurada
+    if not settings.openweather_api_key:
+        raise Exception("OPENWEATHER_API_KEY não configurada no .env")
+    
+    url = (
+        f"{settings.openweather_base_url}?"
+        f"lat={settings.latitude}&"
+        f"lon={settings.longitude}&"
+        f"appid={settings.openweather_api_key}&"
+        f"units=metric&"
+        f"lang=pt_br"
+    )
+    
     for attempt in range(3):
         try:
-            async with httpx.AsyncClient(base_url=settings.base_url, timeout=30.0) as client:
-                print(f"🌐 Tentativa {attempt + 1}/3: Conectando à {settings.base_url}...")
-                response = await client.get("", params=params)
-                response.raise_for_status()
-                payload = response.json()
-                message = {
-                    "city": settings.city,
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                    "temperature": payload["current_weather"]["temperature"],
-                    "windspeed": payload["current_weather"]["windspeed"],
-                    "humidity": payload["hourly"]["relativehumidity_2m"][0],
-                }
-                print(f"✅ Dados obtidos com sucesso!")
-                return json.dumps(message)
+            print(f"🌐 Tentativa {attempt + 1}/3: Conectando ao OpenWeatherMap...")
+            
+            # Usa wget do sistema (contorna problema de rede do Python no Docker)
+            result = subprocess.run(
+                ["wget", "-qO-", "--timeout=30", url],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode != 0:
+                raise Exception(f"wget falhou: {result.stderr}")
+            
+            payload = json.loads(result.stdout)
+            
+            # Extrai dados do formato OpenWeatherMap
+            message = {
+                "city": settings.city,
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "temperature": payload["main"]["temp"],
+                "windspeed": payload["wind"]["speed"] * 3.6,  # m/s para km/h
+                "humidity": payload["main"]["humidity"],
+                "description": payload["weather"][0]["description"] if payload.get("weather") else "",
+                "feels_like": payload["main"].get("feels_like", payload["main"]["temp"]),
+                "pressure": payload["main"].get("pressure", 0),
+            }
+            print(f"✅ Dados obtidos com sucesso! Temp: {message['temperature']}°C")
+            return json.dumps(message)
         except Exception as e:
-            print(f"⚠️ Erro na tentativa {attempt + 1}/3: {e}")
+            print(f"⚠️ Erro na tentativa {attempt + 1}/3: {type(e).__name__}: {e}")
             if attempt < 2:
-                await asyncio.sleep(5)
+                time.sleep(5)
             else:
                 raise
 
@@ -78,10 +95,10 @@ async def fetch_weather():
 def run_scheduler():
     print("🚀 Iniciando coletor de dados climáticos...")
     
-    async def job():
+    def job():
         try:
             print("📡 Buscando dados climáticos...")
-            message = await fetch_weather()
+            message = fetch_weather()
             publish_to_queue(message)
         except Exception as e:
             print(f"❌ Erro ao buscar da API: {e}")
@@ -94,20 +111,21 @@ def run_scheduler():
                 "temperature": 25.0 + (hash(str(datetime.now())) % 10),
                 "windspeed": 10.0 + (hash(str(datetime.now())) % 20),
                 "humidity": 60.0 + (hash(str(datetime.now())) % 30),
+                "description": "dados de exemplo",
+                "feels_like": 26.0,
+                "pressure": 1013,
             })
             publish_to_queue(message)
 
-    # Executa a cada 30 minutos (ou conforme COLLECTOR_INTERVAL_CRON)
+    # Executa a cada 30 minutos (ou conforme COLLECTOR_INTERVAL_MINUTES)
     interval = int(os.getenv("COLLECTOR_INTERVAL_MINUTES", "30"))
-    schedule.every(interval).minutes.do(lambda: asyncio.run(job()))
+    schedule.every(interval).minutes.do(job)
 
     # Executa imediatamente na primeira vez
     print("⏳ Executando primeira coleta...")
-    asyncio.run(job())
+    job()
 
     print(f"🔄 Coletor iniciado. Intervalo: {interval} minutos")
     while True:
         schedule.run_pending()
-        schedule.idle_seconds()
-
-
+        time.sleep(1)

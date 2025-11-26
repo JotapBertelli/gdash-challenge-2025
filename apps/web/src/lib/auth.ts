@@ -24,11 +24,13 @@ export const authService = {
       password,
     });
     localStorage.setItem('token', data.access_token);
+    localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   },
 
   logout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     window.location.href = '/login';
   },
 
@@ -38,6 +40,21 @@ export const authService = {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  },
+
+  getCurrentUser(): User | null {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return null;
+    try {
+      return JSON.parse(userStr) as User;
+    } catch {
+      return null;
+    }
+  },
+
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === 'admin';
   },
 };
 

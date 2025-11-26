@@ -50,6 +50,9 @@ services:
       context: ./services/collector
       dockerfile: Dockerfile
     env_file: .env
+    environment:
+      - OPENWEATHER_API_KEY=0188cfeae65096496ec655e207f03016
+      - OPENWEATHER_BASE_URL=https://api.openweathermap.org/data/2.5/weather
     depends_on:
       - rabbitmq
 

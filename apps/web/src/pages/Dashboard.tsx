@@ -111,7 +111,7 @@ function AnimatedSunIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 100 100" fill="none">
       {/* Raios */}
-      <g className="animate-spin-slow" style={{ transformOrigin: '50px 50px', animation: 'spin 20s linear infinite' }}>
+      <g style={{ transformOrigin: '50px 50px', animation: 'spin 20s linear infinite' }}>
         {[...Array(8)].map((_, i) => (
           <line
             key={i}
@@ -131,6 +131,429 @@ function AnimatedSunIcon({ className }: { className?: string }) {
       <circle cx="50" cy="50" r="18" fill="#FCD34D" />
     </svg>
   );
+}
+
+// Ícone de nuvem animada
+function AnimatedCloudIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <g style={{ animation: 'float 3s ease-in-out infinite' }}>
+        <ellipse cx="50" cy="55" rx="30" ry="18" fill="#9CA3AF" />
+        <circle cx="35" cy="50" r="16" fill="#9CA3AF" />
+        <circle cx="55" cy="45" r="20" fill="#9CA3AF" />
+        <circle cx="70" cy="52" r="14" fill="#9CA3AF" />
+        {/* Destaques */}
+        <ellipse cx="50" cy="52" rx="25" ry="12" fill="#D1D5DB" />
+      </g>
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de chuva animada
+function AnimatedRainIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Nuvem */}
+      <g>
+        <ellipse cx="50" cy="35" rx="25" ry="15" fill="#6B7280" />
+        <circle cx="35" cy="32" r="13" fill="#6B7280" />
+        <circle cx="55" cy="28" r="16" fill="#6B7280" />
+        <circle cx="68" cy="33" r="11" fill="#6B7280" />
+      </g>
+      {/* Gotas de chuva animadas */}
+      {[0, 1, 2, 3, 4].map((i) => (
+        <line
+          key={i}
+          x1={30 + i * 10}
+          y1="55"
+          x2={28 + i * 10}
+          y2="70"
+          stroke="#60A5FA"
+          strokeWidth="3"
+          strokeLinecap="round"
+          style={{
+            animation: `rain 0.8s ease-in infinite`,
+            animationDelay: `${i * 0.15}s`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes rain {
+          0% { transform: translateY(0); opacity: 1; }
+          100% { transform: translateY(20px); opacity: 0; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de tempestade animada
+function AnimatedStormIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Nuvem escura */}
+      <g>
+        <ellipse cx="50" cy="30" rx="28" ry="16" fill="#374151" />
+        <circle cx="32" cy="27" r="14" fill="#374151" />
+        <circle cx="55" cy="22" r="18" fill="#374151" />
+        <circle cx="72" cy="28" r="12" fill="#374151" />
+      </g>
+      {/* Raio */}
+      <polygon
+        points="50,40 42,55 48,55 40,75 58,50 50,50 58,40"
+        fill="#FBBF24"
+        style={{ animation: 'flash 1.5s ease-in-out infinite' }}
+      />
+      {/* Gotas */}
+      {[0, 1, 2].map((i) => (
+        <line
+          key={i}
+          x1={25 + i * 25}
+          y1="50"
+          x2={23 + i * 25}
+          y2="62"
+          stroke="#60A5FA"
+          strokeWidth="2"
+          strokeLinecap="round"
+          style={{
+            animation: `rain 0.6s ease-in infinite`,
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes flash {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de sol com nuvem (parcialmente nublado/agradável)
+function AnimatedPartlyCloudyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Sol atrás */}
+      <g style={{ transformOrigin: '70px 30px', animation: 'spin 25s linear infinite' }}>
+        {[...Array(8)].map((_, i) => (
+          <line
+            key={i}
+            x1="70"
+            y1="10"
+            x2="70"
+            y2="18"
+            stroke="#FCD34D"
+            strokeWidth="3"
+            strokeLinecap="round"
+            transform={`rotate(${i * 45} 70 30)`}
+          />
+        ))}
+      </g>
+      <circle cx="70" cy="30" r="15" fill="#FBBF24" />
+      {/* Nuvem na frente */}
+      <g style={{ animation: 'float 4s ease-in-out infinite' }}>
+        <ellipse cx="45" cy="60" rx="28" ry="16" fill="#E5E7EB" />
+        <circle cx="28" cy="55" r="14" fill="#E5E7EB" />
+        <circle cx="50" cy="50" r="18" fill="#E5E7EB" />
+        <circle cx="68" cy="57" r="12" fill="#E5E7EB" />
+      </g>
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de frio/neve
+function AnimatedColdIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Floco de neve central */}
+      <g style={{ transformOrigin: '50px 50px', animation: 'spin 10s linear infinite' }}>
+        {[0, 60, 120].map((angle) => (
+          <g key={angle} transform={`rotate(${angle} 50 50)`}>
+            <line x1="50" y1="20" x2="50" y2="80" stroke="#93C5FD" strokeWidth="4" />
+            <line x1="50" y1="25" x2="40" y2="35" stroke="#93C5FD" strokeWidth="3" />
+            <line x1="50" y1="25" x2="60" y2="35" stroke="#93C5FD" strokeWidth="3" />
+            <line x1="50" y1="75" x2="40" y2="65" stroke="#93C5FD" strokeWidth="3" />
+            <line x1="50" y1="75" x2="60" y2="65" stroke="#93C5FD" strokeWidth="3" />
+          </g>
+        ))}
+      </g>
+      <circle cx="50" cy="50" r="8" fill="#DBEAFE" />
+    </svg>
+  );
+}
+
+// Ícone de vento
+function AnimatedWindIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <g>
+        <path
+          d="M15 35 Q40 35 55 35 Q70 35 70 25 Q70 15 55 15"
+          stroke="#9CA3AF"
+          strokeWidth="4"
+          strokeLinecap="round"
+          fill="none"
+          style={{ animation: 'wind1 2s ease-in-out infinite' }}
+        />
+        <path
+          d="M10 50 Q45 50 65 50 Q85 50 85 60 Q85 70 65 70"
+          stroke="#D1D5DB"
+          strokeWidth="4"
+          strokeLinecap="round"
+          fill="none"
+          style={{ animation: 'wind2 2.5s ease-in-out infinite' }}
+        />
+        <path
+          d="M20 65 Q40 65 50 65 Q65 65 65 75 Q65 85 50 85"
+          stroke="#E5E7EB"
+          strokeWidth="4"
+          strokeLinecap="round"
+          fill="none"
+          style={{ animation: 'wind3 1.8s ease-in-out infinite' }}
+        />
+      </g>
+      <style>{`
+        @keyframes wind1 {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(5px); }
+        }
+        @keyframes wind2 {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(8px); }
+        }
+        @keyframes wind3 {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(4px); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de calor extremo
+function AnimatedHotIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Sol intenso */}
+      <g style={{ transformOrigin: '50px 45px', animation: 'spin 15s linear infinite' }}>
+        {[...Array(12)].map((_, i) => (
+          <line
+            key={i}
+            x1="50"
+            y1="5"
+            x2="50"
+            y2="18"
+            stroke="#F97316"
+            strokeWidth="4"
+            strokeLinecap="round"
+            transform={`rotate(${i * 30} 50 45)`}
+          />
+        ))}
+      </g>
+      <circle cx="50" cy="45" r="22" fill="#EF4444" />
+      <circle cx="50" cy="45" r="16" fill="#F97316" />
+      {/* Ondas de calor */}
+      <path
+        d="M30 80 Q35 75 40 80 Q45 85 50 80 Q55 75 60 80 Q65 85 70 80"
+        stroke="#FCA5A5"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+        style={{ animation: 'heat 1.5s ease-in-out infinite' }}
+      />
+      <style>{`
+        @keyframes heat {
+          0%, 100% { transform: translateY(0); opacity: 0.5; }
+          50% { transform: translateY(-5px); opacity: 1; }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de lua animada (noite limpa)
+function AnimatedMoonIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Estrelas */}
+      {[
+        { x: 15, y: 20, size: 2, delay: 0 },
+        { x: 25, y: 35, size: 1.5, delay: 0.3 },
+        { x: 80, y: 25, size: 2, delay: 0.5 },
+        { x: 75, y: 45, size: 1.5, delay: 0.2 },
+        { x: 20, y: 70, size: 1.5, delay: 0.7 },
+        { x: 85, y: 65, size: 2, delay: 0.4 },
+      ].map((star, i) => (
+        <circle
+          key={i}
+          cx={star.x}
+          cy={star.y}
+          r={star.size}
+          fill="#FEF3C7"
+          style={{
+            animation: `twinkle 2s ease-in-out infinite`,
+            animationDelay: `${star.delay}s`,
+          }}
+        />
+      ))}
+      {/* Lua crescente */}
+      <g style={{ animation: 'float 4s ease-in-out infinite' }}>
+        <circle cx="50" cy="50" r="25" fill="#FEF3C7" />
+        <circle cx="60" cy="45" r="20" fill="#1F2937" />
+      </g>
+      <style>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de lua com nuvem (noite parcialmente nublada/agradável)
+function AnimatedMoonCloudIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Estrelas */}
+      {[
+        { x: 15, y: 15, size: 1.5, delay: 0 },
+        { x: 85, y: 20, size: 1.5, delay: 0.3 },
+        { x: 10, y: 40, size: 1, delay: 0.5 },
+      ].map((star, i) => (
+        <circle
+          key={i}
+          cx={star.x}
+          cy={star.y}
+          r={star.size}
+          fill="#FEF3C7"
+          style={{
+            animation: `twinkle 2s ease-in-out infinite`,
+            animationDelay: `${star.delay}s`,
+          }}
+        />
+      ))}
+      {/* Lua atrás */}
+      <g>
+        <circle cx="70" cy="30" r="18" fill="#FEF3C7" />
+        <circle cx="78" cy="26" r="14" fill="#1F2937" />
+      </g>
+      {/* Nuvem na frente */}
+      <g style={{ animation: 'float 4s ease-in-out infinite' }}>
+        <ellipse cx="45" cy="65" rx="28" ry="16" fill="#E5E7EB" />
+        <circle cx="28" cy="60" r="14" fill="#E5E7EB" />
+        <circle cx="50" cy="55" r="18" fill="#E5E7EB" />
+        <circle cx="68" cy="62" r="12" fill="#E5E7EB" />
+      </g>
+      <style>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Ícone de nuvem noturna (noite nublada)
+function AnimatedNightCloudIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      {/* Fundo escuro com estrelas fracas */}
+      {[
+        { x: 10, y: 15, size: 1, delay: 0 },
+        { x: 90, y: 20, size: 1, delay: 0.5 },
+      ].map((star, i) => (
+        <circle
+          key={i}
+          cx={star.x}
+          cy={star.y}
+          r={star.size}
+          fill="#6B7280"
+          style={{
+            animation: `twinkle 3s ease-in-out infinite`,
+            animationDelay: `${star.delay}s`,
+          }}
+        />
+      ))}
+      {/* Nuvem escura */}
+      <g style={{ animation: 'float 3s ease-in-out infinite' }}>
+        <ellipse cx="50" cy="55" rx="30" ry="18" fill="#4B5563" />
+        <circle cx="35" cy="50" r="16" fill="#4B5563" />
+        <circle cx="55" cy="45" r="20" fill="#4B5563" />
+        <circle cx="70" cy="52" r="14" fill="#4B5563" />
+        {/* Destaques */}
+        <ellipse cx="50" cy="52" rx="25" ry="12" fill="#6B7280" />
+      </g>
+      <style>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 0.2; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
+    </svg>
+  );
+}
+
+// Função para verificar se é noite (entre 18h e 6h)
+function isNightTime(): boolean {
+  const hour = new Date().getHours();
+  return hour >= 18 || hour < 6;
+}
+
+// Função para selecionar o ícone baseado na classificação do dia e hora
+function getAnimatedWeatherIcon(dayClassification: string, className?: string) {
+  const isNight = isNightTime();
+  
+  switch (dayClassification) {
+    case 'Chuvoso':
+      return <AnimatedRainIcon className={className} />;
+    case 'Tempestuoso':
+      return <AnimatedStormIcon className={className} />;
+    case 'Muito Quente':
+      return isNight ? <AnimatedMoonIcon className={className} /> : <AnimatedHotIcon className={className} />;
+    case 'Quente':
+    case 'Ensolarado':
+      return isNight ? <AnimatedMoonIcon className={className} /> : <AnimatedSunIcon className={className} />;
+    case 'Frio':
+    case 'Fresco':
+      return <AnimatedColdIcon className={className} />;
+    case 'Nublado':
+      return isNight ? <AnimatedNightCloudIcon className={className} /> : <AnimatedCloudIcon className={className} />;
+    case 'Ventoso':
+      return <AnimatedWindIcon className={className} />;
+    case 'Agradável':
+    case 'Parcialmente Nublado':
+      return isNight ? <AnimatedMoonCloudIcon className={className} /> : <AnimatedPartlyCloudyIcon className={className} />;
+    default:
+      return isNight ? <AnimatedMoonIcon className={className} /> : <AnimatedSunIcon className={className} />;
+  }
 }
 
 // Função para obter ícone do alerta
@@ -282,7 +705,7 @@ export default function Dashboard() {
               <Sun className="w-6 h-6 text-gray-800" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Weather Dashboard</h1>
+              <h1 className="text-xl font-bold text-gray-800">Dashboard de Análise Climática</h1>
               <p className="text-sm text-gray-500">GDASH Challenge 2025</p>
             </div>
           </div>
@@ -296,13 +719,15 @@ export default function Dashboard() {
               <RefreshCw className="w-4 h-4" />
               Atualizar
             </button>
-            <button
-              onClick={() => navigate('/users')}
-              className="px-4 py-2 bg-gray-700 text-white rounded-full text-sm font-medium hover:bg-gray-600 transition flex items-center gap-2"
-            >
-              <Users className="w-4 h-4" />
-              Usuários
-            </button>
+            {authService.isAdmin() && (
+              <button
+                onClick={() => navigate('/users')}
+                className="px-4 py-2 bg-gray-700 text-white rounded-full text-sm font-medium hover:bg-gray-600 transition flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                Usuários
+              </button>
+            )}
             <button
               onClick={authService.logout}
               className="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition flex items-center gap-2"
@@ -351,9 +776,9 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Sun Icon */}
+              {/* Weather Icon - Dinâmico baseado na classificação */}
               <div className="flex flex-col items-center justify-center">
-                <AnimatedSunIcon className="w-32 h-32" />
+                {getAnimatedWeatherIcon(analysis?.dayClassification || 'Ensolarado', 'w-32 h-32')}
                 <p className="text-xl font-medium mt-2">{analysis?.dayClassification || 'Ensolarado'}</p>
               </div>
 
@@ -589,7 +1014,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <footer className="mt-8 text-center text-gray-500 text-sm">
-          <p>Weather Dashboard • GDASH Challenge 2025 • Penápolis, SP</p>
+          <p>Dashboard de Análise Climática • GDASH Challenge 2025 • Penápolis, SP</p>
         </footer>
       </main>
     </div>

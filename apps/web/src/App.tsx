@@ -8,6 +8,16 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return authService.isAuthenticated() ? <>{children}</> : <Navigate to="/login" />;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  if (!authService.isAuthenticated()) {
+    return <Navigate to="/login" />;
+  }
+  if (!authService.isAdmin()) {
+    return <Navigate to="/dashboard" />;
+  }
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -24,9 +34,9 @@ function App() {
         <Route
           path="/users"
           element={
-            <PrivateRoute>
+            <AdminRoute>
               <Users />
-            </PrivateRoute>
+            </AdminRoute>
           }
         />
         <Route path="/" element={<Navigate to="/dashboard" />} />

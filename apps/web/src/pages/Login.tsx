@@ -33,7 +33,7 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-yellow-400 rounded-full mb-4">
             <Sun className="w-10 h-10 text-gray-800" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Weather Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white">Dashboard de Análise Climática</h1>
           <p className="text-gray-400 mt-2">GDASH Challenge 2025</p>
         </div>
 
