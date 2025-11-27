@@ -8,6 +8,52 @@ interface WeatherData {
   temperature: number;
   humidity: number;
   windspeed: number;
+  description?: string;
+  feels_like?: number;
+  pressure?: number;
+}
+
+// Análise especializada para diferentes setores
+export interface SpecializedAnalysis {
+  agriculture: {
+    score: number;
+    status: string;
+    recommendations: string[];
+    risks: string[];
+  };
+  health: {
+    respiratoryRisk: string;
+    hydrationAlert: boolean;
+    uvProtection: string;
+    recommendations: string[];
+  };
+  sports: {
+    outdoorScore: number;
+    bestActivities: string[];
+    avoid: string[];
+    bestTimeToday: string;
+  };
+  energy: {
+    acRecommendation: string;
+    solarPotential: string;
+    energySavingTips: string[];
+  };
+  // NOVO: Análise específica para energia solar/fotovoltaica
+  solar: {
+    productionScore: number; // 0-100
+    productionLevel: string; // Excelente, Bom, Moderado, Baixo, Nulo
+    estimatedEfficiency: number; // % de eficiência estimada
+    peakHours: string; // Melhores horários
+    currentStatus: string; // Status atual de produção
+    irradianceLevel: string; // Nível de irradiação
+    recommendations: string[];
+    alerts: string[];
+    dailyForecast: {
+      morning: number;
+      afternoon: number;
+      total: number;
+    };
+  };
 }
 
 export interface WeatherAnalysis {
@@ -57,6 +103,12 @@ export interface WeatherAnalysis {
 
   // Resumo narrativo
   narrative: string;
+
+  // Análises especializadas
+  specialized?: SpecializedAnalysis;
+
+  // Indica se é noite
+  isNight?: boolean;
 }
 
 @Injectable()
@@ -67,28 +119,46 @@ export class AIService {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (apiKey && apiKey !== 'sk-xxxx' && apiKey.startsWith('sk-')) {
       this.openai = new OpenAI({ apiKey });
+      console.log('🤖 OpenAI inicializada com sucesso!');
+    } else {
+      console.log('⚠️ OpenAI não configurada - usando análise local avançada');
     }
   }
 
   async generateInsights(weatherData: WeatherData[]): Promise<{
     insights: string;
     analysis: WeatherAnalysis | null;
+    specializedInsights?: {
+      agriculture: string;
+      health: string;
+      sports: string;
+      energy: string;
+    };
     generatedAt: string;
-    source: 'ai' | 'local';
+    source: 'openai' | 'local';
+    model?: string;
   }> {
     const analysis = this.analyzeWeatherData(weatherData);
 
     if (this.openai && weatherData.length > 0) {
       try {
-        const aiInsights = await this.generateOpenAIInsights(weatherData, analysis);
+        console.log('🚀 Gerando insights com OpenAI...');
+        const [mainInsights, specializedInsights] = await Promise.all([
+          this.generateOpenAIInsights(weatherData, analysis),
+          this.generateSpecializedOpenAIInsights(weatherData, analysis),
+        ]);
+
         return {
-          insights: aiInsights,
+          insights: mainInsights,
           analysis,
+          specializedInsights,
           generatedAt: new Date().toISOString(),
-          source: 'ai',
+          source: 'openai',
+          model: 'gpt-4o-mini',
         };
-      } catch (error) {
-        console.error('Erro ao gerar insights com OpenAI:', error);
+      } catch (error: any) {
+        console.error('❌ Erro ao gerar insights com OpenAI:', error?.message || error);
+        // Fallback para análise local
       }
     }
 
@@ -121,8 +191,8 @@ export class AIService {
       tempVariation: Math.max(...temps) - Math.min(...temps),
     };
 
-    // Calcular sensação térmica (Heat Index simplificado)
-    const feelsLike = this.calculateFeelsLike(latest.temperature, latest.humidity, latest.windspeed);
+    // Calcular sensação térmica
+    const feelsLike = latest.feels_like || this.calculateFeelsLike(latest.temperature, latest.humidity, latest.windspeed);
 
     // Calcular pontuação de conforto (0-100)
     const { comfortScore, comfortLevel, comfortEmoji } = this.calculateComfortScore(
@@ -136,11 +206,16 @@ export class AIService {
     const humidityTrend = this.detectTrend(humidities);
     const trendEmoji = tempTrend === 'subindo' ? '📈' : tempTrend === 'caindo' ? '📉' : '➡️';
 
+    // Verificar se é noite
+    const isNight = this.isNightTime(latest.ts);
+
     // Classificar o dia
     const { dayClassification, dayEmoji } = this.classifyDay(
       latest.temperature,
       latest.humidity,
       latest.windspeed,
+      latest.description,
+      isNight,
     );
 
     // Estimar índice UV
@@ -154,6 +229,9 @@ export class AIService {
 
     // Gerar narrativa
     const narrative = this.generateNarrative(latest, stats, tempTrend, data.length);
+
+    // Gerar análises especializadas
+    const specialized = this.generateSpecializedAnalysis(latest, stats, comfortScore);
 
     return {
       comfortScore,
@@ -170,7 +248,310 @@ export class AIService {
       alerts,
       recommendations,
       narrative,
+      specialized,
+      isNight,
     };
+  }
+
+  private isNightTime(timestamp: string | Date): boolean {
+    const now = new Date(timestamp);
+    const brasiliaOffset = -3 * 60;
+    const localTime = new Date(now.getTime() + (brasiliaOffset - now.getTimezoneOffset()) * 60000);
+    const hour = localTime.getHours();
+    return hour < 6 || hour >= 18;
+  }
+
+  private generateSpecializedAnalysis(
+    latest: WeatherData,
+    stats: WeatherAnalysis['stats'],
+    comfortScore: number,
+  ): SpecializedAnalysis {
+    // Análise Agrícola
+    const agricultureScore = this.calculateAgricultureScore(latest, stats);
+    const agricultureStatus = agricultureScore >= 70 ? 'Excelente' : agricultureScore >= 50 ? 'Bom' : agricultureScore >= 30 ? 'Regular' : 'Desfavorável';
+    
+    const agricultureRecommendations: string[] = [];
+    const agricultureRisks: string[] = [];
+    
+    if (latest.humidity < 40) {
+      agricultureRisks.push('Risco de estresse hídrico nas plantas');
+      agricultureRecommendations.push('Aumentar frequência de irrigação');
+    }
+    if (latest.temperature > 35) {
+      agricultureRisks.push('Temperatura excessiva pode causar queimaduras foliares');
+      agricultureRecommendations.push('Irrigar nas horas mais frescas');
+    }
+    if (latest.humidity > 85) {
+      agricultureRisks.push('Alta umidade favorece doenças fúngicas');
+      agricultureRecommendations.push('Monitorar sinais de fungos nas lavouras');
+    }
+    if (latest.windspeed > 40) {
+      agricultureRisks.push('Ventos fortes podem danificar culturas');
+    }
+    if (agricultureRisks.length === 0) {
+      agricultureRecommendations.push('Condições ideais para manejo agrícola');
+    }
+
+    // Análise de Saúde
+    const respiratoryRisk = latest.humidity < 30 ? 'Alto' : latest.humidity < 50 ? 'Moderado' : 'Baixo';
+    const hydrationAlert = latest.temperature > 28 || latest.humidity < 40;
+    const uvProtection = this.estimateUVIndex(latest.ts, latest.humidity).includes('Alto') ? 'Essencial' : 'Recomendado';
+    
+    const healthRecommendations: string[] = [];
+    if (hydrationAlert) healthRecommendations.push('Beba água a cada 30 minutos');
+    if (respiratoryRisk === 'Alto') {
+      healthRecommendations.push('Use soro fisiológico nas narinas');
+      healthRecommendations.push('Mantenha ambientes umidificados');
+    }
+    if (latest.temperature > 32) {
+      healthRecommendations.push('Evite exposição solar entre 10h e 16h');
+    }
+
+    // Análise de Esportes
+    const outdoorScore = comfortScore;
+    const bestActivities: string[] = [];
+    const avoidActivities: string[] = [];
+    
+    if (latest.temperature > 30) {
+      avoidActivities.push('Corrida ao ar livre');
+      avoidActivities.push('Esportes de alta intensidade');
+      bestActivities.push('Natação');
+      bestActivities.push('Exercícios em academia climatizada');
+    } else if (latest.temperature >= 20 && latest.temperature <= 28) {
+      bestActivities.push('Corrida');
+      bestActivities.push('Ciclismo');
+      bestActivities.push('Futebol');
+      bestActivities.push('Caminhada');
+    } else if (latest.temperature < 15) {
+      bestActivities.push('Corrida leve');
+      avoidActivities.push('Esportes aquáticos ao ar livre');
+    }
+    
+    if (latest.humidity > 85) {
+      avoidActivities.push('Atividades intensas ao ar livre');
+    }
+
+    const isNight = this.isNightTime(latest.ts);
+    const bestTimeToday = isNight ? 'Amanhã entre 6h-9h ou 17h-19h' :
+      latest.temperature > 28 ? 'Entre 6h-8h ou após 18h' : 'Agora é um bom momento!';
+
+    // Análise de Energia
+    const acRecommendation = latest.temperature > 28 ? 'Recomendado' : latest.temperature > 25 ? 'Opcional' : 'Desnecessário';
+    const solarPotential = latest.humidity < 60 && !isNight ? 'Alto' : latest.humidity < 80 && !isNight ? 'Moderado' : 'Baixo';
+    
+    const energySavingTips: string[] = [];
+    if (latest.temperature > 30) {
+      energySavingTips.push('Configure o ar-condicionado em 23°C');
+      energySavingTips.push('Feche cortinas para bloquear o sol');
+    }
+    if (!isNight && latest.humidity < 70) {
+      energySavingTips.push('Aproveite a luz natural');
+    }
+    if (latest.temperature < 25) {
+      energySavingTips.push('Abra janelas para ventilação natural');
+    }
+
+    // NOVO: Análise detalhada para energia solar/fotovoltaica
+    const solarAnalysis = this.calculateSolarAnalysis(latest, stats, isNight);
+
+    return {
+      agriculture: {
+        score: agricultureScore,
+        status: agricultureStatus,
+        recommendations: agricultureRecommendations,
+        risks: agricultureRisks,
+      },
+      health: {
+        respiratoryRisk,
+        hydrationAlert,
+        uvProtection,
+        recommendations: healthRecommendations,
+      },
+      sports: {
+        outdoorScore,
+        bestActivities,
+        avoid: avoidActivities,
+        bestTimeToday,
+      },
+      energy: {
+        acRecommendation,
+        solarPotential,
+        energySavingTips,
+      },
+      solar: solarAnalysis,
+    };
+  }
+
+  /**
+   * Calcula análise detalhada para produção de energia solar fotovoltaica
+   * Relevante para a GDASH que trabalha com energia solar compartilhada
+   */
+  private calculateSolarAnalysis(
+    latest: WeatherData,
+    stats: WeatherAnalysis['stats'],
+    isNight: boolean,
+  ): SpecializedAnalysis['solar'] {
+    const now = new Date(latest.ts);
+    const brasiliaOffset = -3 * 60;
+    const localTime = new Date(now.getTime() + (brasiliaOffset - now.getTimezoneOffset()) * 60000);
+    const hour = localTime.getHours();
+
+    // Calcular score de produção solar (0-100)
+    let productionScore = 0;
+    let estimatedEfficiency = 0;
+    let irradianceLevel = 'Nulo';
+    let currentStatus = 'Sem produção';
+    const recommendations: string[] = [];
+    const alerts: string[] = [];
+
+    if (isNight) {
+      // Noite - sem produção solar
+      productionScore = 0;
+      estimatedEfficiency = 0;
+      irradianceLevel = 'Nulo';
+      currentStatus = 'Período noturno - painéis em standby';
+      recommendations.push('Momento ideal para manutenção preventiva dos painéis');
+      recommendations.push('Verifique conexões e inversores durante o período sem produção');
+    } else {
+      // Dia - calcular baseado em condições
+      
+      // Base: hora do dia (pico solar entre 10h-14h)
+      if (hour >= 10 && hour <= 14) {
+        productionScore = 100;
+        irradianceLevel = 'Máximo';
+      } else if (hour >= 8 && hour <= 16) {
+        productionScore = 80;
+        irradianceLevel = 'Alto';
+      } else if (hour >= 6 && hour <= 18) {
+        productionScore = 50;
+        irradianceLevel = 'Moderado';
+      } else {
+        productionScore = 20;
+        irradianceLevel = 'Baixo';
+      }
+
+      // Ajuste por umidade (nuvens)
+      if (latest.humidity > 90) {
+        productionScore *= 0.3; // Muito nublado/chuva
+        irradianceLevel = 'Muito Baixo';
+        alerts.push('⚠️ Alta nebulosidade reduzindo significativamente a produção');
+      } else if (latest.humidity > 80) {
+        productionScore *= 0.5;
+        irradianceLevel = 'Baixo';
+        alerts.push('☁️ Céu encoberto impactando a geração');
+      } else if (latest.humidity > 70) {
+        productionScore *= 0.7;
+        if (irradianceLevel === 'Máximo') irradianceLevel = 'Alto';
+      } else if (latest.humidity > 60) {
+        productionScore *= 0.85;
+      }
+      // Umidade baixa = céu limpo = ótimo para solar
+
+      // Ajuste por temperatura (painéis perdem eficiência com calor extremo)
+      if (latest.temperature > 40) {
+        productionScore *= 0.85;
+        alerts.push('🌡️ Temperatura muito alta reduzindo eficiência dos painéis em ~15%');
+        recommendations.push('Considere sistema de ventilação para os painéis');
+      } else if (latest.temperature > 35) {
+        productionScore *= 0.92;
+        recommendations.push('Temperatura elevada - eficiência ligeiramente reduzida');
+      } else if (latest.temperature >= 20 && latest.temperature <= 30) {
+        productionScore *= 1.05; // Temperatura ideal
+      }
+
+      // Ajuste por vento (ajuda a resfriar painéis)
+      if (latest.windspeed >= 10 && latest.windspeed <= 30 && latest.temperature > 30) {
+        productionScore *= 1.03; // Vento moderado ajuda a resfriar
+        recommendations.push('Brisa ajudando a manter temperatura ideal dos painéis');
+      } else if (latest.windspeed > 50) {
+        alerts.push('💨 Ventos fortes - verifique fixação dos painéis');
+      }
+
+      // Calcular eficiência estimada
+      estimatedEfficiency = Math.min(100, Math.max(0, productionScore));
+      productionScore = Math.round(productionScore);
+
+      // Determinar status atual
+      if (productionScore >= 80) {
+        currentStatus = 'Produção máxima ⚡';
+      } else if (productionScore >= 60) {
+        currentStatus = 'Boa produção ☀️';
+      } else if (productionScore >= 40) {
+        currentStatus = 'Produção moderada ⛅';
+      } else if (productionScore >= 20) {
+        currentStatus = 'Produção baixa ☁️';
+      } else {
+        currentStatus = 'Produção mínima 🌥️';
+      }
+
+      // Recomendações baseadas nas condições
+      if (latest.humidity < 50 && hour >= 9 && hour <= 15) {
+        recommendations.push('🌟 Condições ideais para máxima geração solar');
+      }
+      if (productionScore >= 70) {
+        recommendations.push('📊 Excelente momento para consumo de energia intensivo');
+      }
+    }
+
+    // Determinar nível de produção
+    let productionLevel: string;
+    if (productionScore >= 80) productionLevel = 'Excelente';
+    else if (productionScore >= 60) productionLevel = 'Bom';
+    else if (productionScore >= 40) productionLevel = 'Moderado';
+    else if (productionScore >= 20) productionLevel = 'Baixo';
+    else productionLevel = 'Mínimo';
+
+    // Calcular melhores horários
+    const peakHours = isNight 
+      ? 'Amanhã entre 10h-14h' 
+      : hour < 10 
+        ? `Hoje entre 10h-14h (em ${10 - hour}h)` 
+        : hour <= 14 
+          ? 'Agora! Pico de produção' 
+          : 'Amanhã entre 10h-14h';
+
+    // Previsão diária simplificada (baseada nas condições atuais)
+    const baseProduction = latest.humidity < 70 ? 85 : latest.humidity < 85 ? 60 : 35;
+    const dailyForecast = {
+      morning: Math.round(baseProduction * 0.7),
+      afternoon: Math.round(baseProduction * 1.0),
+      total: Math.round(baseProduction * 0.85),
+    };
+
+    // Adicionar recomendações padrão se não houver
+    if (recommendations.length === 0) {
+      recommendations.push('Monitore a produção em tempo real pelo inversor');
+    }
+
+    return {
+      productionScore: Math.round(productionScore),
+      productionLevel,
+      estimatedEfficiency: Math.round(estimatedEfficiency),
+      peakHours,
+      currentStatus,
+      irradianceLevel,
+      recommendations,
+      alerts,
+      dailyForecast,
+    };
+  }
+
+  private calculateAgricultureScore(latest: WeatherData, stats: WeatherAnalysis['stats']): number {
+    let score = 100;
+    
+    // Temperatura ideal: 20-30°C
+    if (latest.temperature < 15) score -= (15 - latest.temperature) * 5;
+    else if (latest.temperature > 35) score -= (latest.temperature - 35) * 5;
+    else if (latest.temperature < 20 || latest.temperature > 30) score -= 10;
+    
+    // Umidade ideal: 50-75%
+    if (latest.humidity < 40) score -= (40 - latest.humidity) * 1;
+    else if (latest.humidity > 85) score -= (latest.humidity - 85) * 1.5;
+    
+    // Vento moderado é bom, forte é ruim
+    if (latest.windspeed > 50) score -= (latest.windspeed - 50) * 1;
+    
+    return Math.max(0, Math.min(100, Math.round(score)));
   }
 
   private calculateFeelsLike(temp: number, humidity: number, wind: number): number {
@@ -251,10 +632,7 @@ export class AIService {
   private detectTrend(values: number[]): 'subindo' | 'estável' | 'caindo' {
     if (values.length < 3) return 'estável';
 
-    // Pegar os últimos 5 valores (mais recentes primeiro, então invertemos)
     const recent = values.slice(0, Math.min(5, values.length)).reverse();
-    
-    // Calcular a tendência usando regressão linear simples
     const n = recent.length;
     const sumX = (n * (n - 1)) / 2;
     const sumY = recent.reduce((a, b) => a + b, 0);
@@ -272,82 +650,87 @@ export class AIService {
     temp: number,
     humidity: number,
     wind: number,
+    description?: string,
+    isNight?: boolean,
   ): { dayClassification: string; dayEmoji: string } {
-    // Chuvoso
+    // Se temos descrição da API, usar ela como base
+    if (description) {
+      const desc = description.toLowerCase();
+      if (desc.includes('thunder') || desc.includes('storm') || desc.includes('trovão') || desc.includes('tempestade')) {
+        return { dayClassification: 'Tempestuoso', dayEmoji: '⛈️' };
+      }
+      if (desc.includes('rain') || desc.includes('chuva') || desc.includes('drizzle') || desc.includes('chuvisco')) {
+        return { dayClassification: 'Chuvoso', dayEmoji: '🌧️' };
+      }
+      if (desc.includes('snow') || desc.includes('neve')) {
+        return { dayClassification: 'Nevando', dayEmoji: '🌨️' };
+      }
+      if (desc.includes('mist') || desc.includes('fog') || desc.includes('névoa') || desc.includes('neblina')) {
+        return { dayClassification: 'Nevoeiro', dayEmoji: '🌫️' };
+      }
+      if (desc.includes('cloud') || desc.includes('nublado') || desc.includes('nuvens')) {
+        if (desc.includes('few') || desc.includes('scattered') || desc.includes('parcial')) {
+          return { dayClassification: isNight ? 'Noite com Nuvens' : 'Parcialmente Nublado', dayEmoji: isNight ? '☁️' : '⛅' };
+        }
+        return { dayClassification: 'Nublado', dayEmoji: '☁️' };
+      }
+      if (desc.includes('clear') || desc.includes('limpo') || desc.includes('céu limpo')) {
+        if (isNight) {
+          return { dayClassification: 'Noite Clara', dayEmoji: '🌙' };
+        }
+        return { dayClassification: 'Ensolarado', dayEmoji: '☀️' };
+      }
+    }
+
+    // Fallback para classificação baseada em dados numéricos
     if (humidity > 85 && temp < 25) {
       return { dayClassification: 'Chuvoso', dayEmoji: '🌧️' };
     }
-
-    // Tempestuoso
     if (humidity > 80 && wind > 40) {
       return { dayClassification: 'Tempestuoso', dayEmoji: '⛈️' };
     }
-
-    // Muito quente
     if (temp > 35) {
       return { dayClassification: 'Muito Quente', dayEmoji: '🔥' };
     }
-
-    // Quente
     if (temp > 28) {
-      return { dayClassification: 'Quente', dayEmoji: '☀️' };
+      return { dayClassification: isNight ? 'Noite Quente' : 'Quente', dayEmoji: isNight ? '🌙' : '☀️' };
     }
-
-    // Frio
     if (temp < 12) {
       return { dayClassification: 'Frio', dayEmoji: '❄️' };
     }
-
-    // Fresco
     if (temp < 18) {
       return { dayClassification: 'Fresco', dayEmoji: '🌬️' };
     }
-
-    // Nublado
     if (humidity > 70) {
       return { dayClassification: 'Nublado', dayEmoji: '☁️' };
     }
-
-    // Ventoso
     if (wind > 35) {
       return { dayClassification: 'Ventoso', dayEmoji: '💨' };
     }
-
-    // Agradável
     if (temp >= 20 && temp <= 28 && humidity >= 40 && humidity <= 70) {
-      return { dayClassification: 'Agradável', dayEmoji: '🌤️' };
+      return { dayClassification: isNight ? 'Noite Agradável' : 'Agradável', dayEmoji: isNight ? '🌙' : '🌤️' };
     }
-
-    // Parcialmente nublado
     if (humidity > 50) {
-      return { dayClassification: 'Parcialmente Nublado', dayEmoji: '⛅' };
+      return { dayClassification: isNight ? 'Noite com Nuvens' : 'Parcialmente Nublado', dayEmoji: isNight ? '☁️' : '⛅' };
     }
 
-    return { dayClassification: 'Ensolarado', dayEmoji: '☀️' };
+    return { dayClassification: isNight ? 'Noite Clara' : 'Ensolarado', dayEmoji: isNight ? '🌙' : '☀️' };
   }
 
   private estimateUVIndex(timestamp: string | Date, humidity: number): string {
     const now = new Date(timestamp);
-    // Ajustar para horário de Brasília (UTC-3)
     const brasiliaOffset = -3 * 60;
     const localTime = new Date(now.getTime() + (brasiliaOffset - now.getTimezoneOffset()) * 60000);
     const hour = localTime.getHours();
 
-    // Noite
-    if (hour < 6 || hour > 18) return 'Baixo (0-2)';
-
-    // Amanhecer/Entardecer
-    if (hour < 9 || hour > 16) return 'Moderado (3-5)';
-
-    // Meio do dia com umidade alta (nuvens)
+    if (hour < 6 || hour > 18) return 'Nulo (0)';
+    if (hour < 9 || hour > 16) return 'Baixo (1-2)';
     if (humidity > 80) return 'Moderado (3-5)';
-
-    // Meio do dia ensolarado
     if (hour >= 10 && hour <= 14) {
-      if (humidity < 50) return 'Muito Alto (8-10)';
+      if (humidity < 50) return 'Extremo (11+)';
+      if (humidity < 70) return 'Muito Alto (8-10)';
       return 'Alto (6-7)';
     }
-
     return 'Alto (6-7)';
   }
 
@@ -357,7 +740,6 @@ export class AIService {
   ): WeatherAnalysis['alerts'] {
     const alerts: WeatherAnalysis['alerts'] = [];
 
-    // Alertas de temperatura
     if (latest.temperature > 38) {
       alerts.push({
         type: 'danger',
@@ -388,62 +770,52 @@ export class AIService {
       });
     }
 
-    // Alertas de umidade
     if (latest.humidity > 90) {
       alerts.push({
         type: 'warning',
         title: 'Umidade Muito Alta',
-        message: `Umidade em ${latest.humidity.toFixed(0)}%. Alta probabilidade de chuva nas próximas horas.`,
+        message: `Umidade em ${latest.humidity.toFixed(0)}%. Alta probabilidade de chuva.`,
         icon: '🌧️',
       });
     } else if (latest.humidity < 25) {
       alerts.push({
         type: 'warning',
         title: 'Ar Muito Seco',
-        message: `Umidade em apenas ${latest.humidity.toFixed(0)}%. Hidrate-se e use hidratante.`,
+        message: `Umidade em apenas ${latest.humidity.toFixed(0)}%. Hidrate-se bem!`,
         icon: '🏜️',
       });
     }
 
-    // Alertas de vento
     if (latest.windspeed > 60) {
       alerts.push({
         type: 'danger',
         title: 'Vendaval',
-        message: `Ventos de ${latest.windspeed.toFixed(1)} km/h! Evite áreas abertas e cuidado com objetos soltos.`,
+        message: `Ventos de ${latest.windspeed.toFixed(1)} km/h! Evite áreas abertas.`,
         icon: '🌪️',
       });
     } else if (latest.windspeed > 40) {
       alerts.push({
         type: 'warning',
         title: 'Ventos Fortes',
-        message: `Ventos de ${latest.windspeed.toFixed(1)} km/h. Cuidado ao dirigir e com objetos leves.`,
+        message: `Ventos de ${latest.windspeed.toFixed(1)} km/h. Cuidado ao dirigir.`,
         icon: '💨',
       });
     }
 
-    // Alerta de grande variação térmica
     if (stats.tempVariation > 12) {
       alerts.push({
         type: 'info',
         title: 'Grande Variação Térmica',
-        message: `Variação de ${stats.tempVariation.toFixed(1)}°C registrada. Leve agasalho para mudanças bruscas.`,
+        message: `Variação de ${stats.tempVariation.toFixed(1)}°C. Leve agasalho.`,
         icon: '🌡️',
       });
     }
 
-    // Clima agradável
-    if (
-      alerts.length === 0 &&
-      latest.temperature >= 20 &&
-      latest.temperature <= 28 &&
-      latest.humidity >= 40 &&
-      latest.humidity <= 70
-    ) {
+    if (alerts.length === 0 && latest.temperature >= 20 && latest.temperature <= 28 && latest.humidity >= 40 && latest.humidity <= 70) {
       alerts.push({
         type: 'success',
         title: 'Clima Perfeito',
-        message: 'Condições climáticas ideais para atividades ao ar livre!',
+        message: 'Condições ideais para atividades ao ar livre!',
         icon: '✨',
       });
     }
@@ -458,46 +830,34 @@ export class AIService {
   ): string[] {
     const recommendations: string[] = [];
 
-    // Recomendações de vestuário
     if (latest.temperature > 30) {
       recommendations.push('👕 Vista roupas leves e claras');
-      recommendations.push('🧴 Use protetor solar FPS 30+');
+      recommendations.push('🧴 Use protetor solar FPS 50+');
+      recommendations.push('💧 Beba água a cada 30 minutos');
     } else if (latest.temperature < 18) {
-      recommendations.push('🧥 Leve um agasalho ou casaco');
+      recommendations.push('🧥 Vista agasalho ou casaco');
     }
 
-    // Hidratação
-    if (latest.temperature > 28 || latest.humidity < 40) {
-      recommendations.push('💧 Beba água frequentemente (2-3L/dia)');
+    if (latest.humidity < 40) {
+      recommendations.push('💧 Hidrate-se constantemente');
+      recommendations.push('👃 Use soro fisiológico');
     }
 
-    // Atividades
     if (comfortScore >= 70 && latest.windspeed < 30) {
-      recommendations.push('🏃 Ótimo momento para exercícios ao ar livre');
+      recommendations.push('🏃 Ótimo para exercícios ao ar livre');
     } else if (latest.temperature > 32) {
-      recommendations.push('🏠 Prefira atividades em ambientes climatizados');
+      recommendations.push('🏠 Prefira ambientes climatizados');
     }
 
-    // Proteção
     if (latest.humidity > 85) {
-      recommendations.push('☂️ Leve guarda-chuva por precaução');
+      recommendations.push('☂️ Leve guarda-chuva');
     }
 
     if (latest.windspeed > 35) {
-      recommendations.push('🚗 Dirija com cuidado - ventos fortes');
+      recommendations.push('🚗 Dirija com cuidado');
     }
 
-    // Ar condicionado
-    if (latest.temperature > 30 && latest.humidity > 70) {
-      recommendations.push('❄️ Ambientes climatizados são recomendados');
-    }
-
-    // Ventilação
-    if (latest.humidity > 80 && latest.temperature > 25) {
-      recommendations.push('🪟 Mantenha ambientes ventilados');
-    }
-
-    return recommendations.slice(0, 5); // Máximo 5 recomendações
+    return recommendations.slice(0, 5);
   }
 
   private generateNarrative(
@@ -508,63 +868,44 @@ export class AIService {
   ): string {
     const city = latest.city;
     const now = new Date(latest.ts);
-    // Ajustar para horário de Brasília (UTC-3)
-    const brasiliaOffset = -3 * 60; // -3 horas em minutos
+    const brasiliaOffset = -3 * 60;
     const localTime = new Date(now.getTime() + (brasiliaOffset - now.getTimezoneOffset()) * 60000);
     const hour = localTime.getHours();
-    const period =
-      hour < 12 ? 'da manhã' : hour < 18 ? 'da tarde' : 'da noite';
 
     let narrative = `📍 **${city}** - `;
 
-    // Saudação baseada no período (horário de Brasília)
     if (hour < 12) narrative += 'Bom dia! ';
     else if (hour < 18) narrative += 'Boa tarde! ';
     else narrative += 'Boa noite! ';
 
-    // Descrição atual
-    narrative += `Neste momento, registramos **${latest.temperature.toFixed(1)}°C** `;
+    narrative += `Agora temos **${latest.temperature.toFixed(1)}°C** `;
 
-    if (latest.temperature > 30) {
-      narrative += 'com calor intenso ';
-    } else if (latest.temperature > 25) {
-      narrative += 'com clima quente ';
-    } else if (latest.temperature < 15) {
-      narrative += 'com clima frio ';
-    } else {
-      narrative += 'com temperatura agradável ';
-    }
+    if (latest.temperature > 30) narrative += 'com calor intenso ';
+    else if (latest.temperature > 25) narrative += 'com clima quente ';
+    else if (latest.temperature < 15) narrative += 'com clima frio ';
+    else narrative += 'com temperatura agradável ';
 
     narrative += `e umidade de **${latest.humidity.toFixed(0)}%**. `;
 
-    // Vento
     if (latest.windspeed > 30) {
-      narrative += `Os ventos estão fortes, a **${latest.windspeed.toFixed(1)} km/h**. `;
+      narrative += `Ventos fortes de **${latest.windspeed.toFixed(1)} km/h**. `;
     } else if (latest.windspeed > 15) {
-      narrative += `Há uma brisa moderada de **${latest.windspeed.toFixed(1)} km/h**. `;
+      narrative += `Brisa de **${latest.windspeed.toFixed(1)} km/h**. `;
     }
 
-    // Tendência
     narrative += '\n\n';
     if (tempTrend === 'subindo') {
-      narrative += '📈 **Tendência:** A temperatura está em **elevação**. ';
-      if (latest.temperature > 25) {
-        narrative += 'Espere um período ${period} ainda mais quente.';
-      }
+      narrative += '📈 **Tendência:** Temperatura em **elevação**.';
     } else if (tempTrend === 'caindo') {
-      narrative += '📉 **Tendência:** A temperatura está em **queda**. ';
-      if (hour > 16) {
-        narrative += 'Normal para o período noturno.';
-      }
+      narrative += '📉 **Tendência:** Temperatura em **queda**.';
     } else {
-      narrative += '➡️ **Tendência:** Temperatura **estável** nas últimas horas.';
+      narrative += '➡️ **Tendência:** Temperatura **estável**.';
     }
 
-    // Estatísticas
     if (totalRecords > 1) {
-      narrative += `\n\n📊 **Estatísticas** (${totalRecords} registros): `;
-      narrative += `Temperatura variou entre **${stats.minTemp.toFixed(1)}°C** e **${stats.maxTemp.toFixed(1)}°C** `;
-      narrative += `(média de **${stats.avgTemp.toFixed(1)}°C**).`;
+      narrative += `\n\n📊 **Histórico** (${totalRecords} registros): `;
+      narrative += `${stats.minTemp.toFixed(1)}°C - ${stats.maxTemp.toFixed(1)}°C `;
+      narrative += `(média: ${stats.avgTemp.toFixed(1)}°C)`;
     }
 
     return narrative;
@@ -577,51 +918,279 @@ export class AIService {
     if (!analysis) return 'Dados insuficientes para análise.';
 
     const latest = weatherData[0];
+    const now = new Date(latest.ts);
+    const brasiliaOffset = -3 * 60;
+    const localTime = new Date(now.getTime() + (brasiliaOffset - now.getTimezoneOffset()) * 60000);
+    const hour = localTime.getHours();
+    const dayOfWeek = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][localTime.getDay()];
+    const month = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][localTime.getMonth()];
+    
+    const cityContext = this.getCityContext(latest.city);
+    const seasonContext = this.getSeasonContext(localTime.getMonth());
+    
     const prompt = `
-Você é um meteorologista experiente e comunicativo. Analise os seguintes dados climáticos e forneça insights úteis, criativos e práticos em português brasileiro.
+Você é o "Mestre do Clima" - um meteorologista renomado, contador de histórias e especialista em bem-estar. Crie uma análise climática RICA, ENVOLVENTE e MEMORÁVEL.
 
-**Dados Atuais - ${latest.city}:**
-- Temperatura: ${latest.temperature.toFixed(1)}°C (Sensação: ${analysis.feelsLike.toFixed(1)}°C)
-- Umidade: ${latest.humidity.toFixed(0)}%
-- Vento: ${latest.windspeed.toFixed(1)} km/h
-- Horário: ${new Date(latest.ts).toLocaleString('pt-BR')}
+═══════════════════════════════════════════════════════
+📍 LOCALIZAÇÃO: ${latest.city}
+${cityContext}
+═══════════════════════════════════════════════════════
 
-**Análise Prévia:**
-- Pontuação de Conforto: ${analysis.comfortScore}/100 (${analysis.comfortLevel})
-- Classificação: ${analysis.dayClassification}
-- Tendência de Temperatura: ${analysis.tempTrend}
-- Índice UV Estimado: ${analysis.uvIndex}
+📅 MOMENTO ATUAL
+• ${dayOfWeek}, ${localTime.getDate()} de ${month} de ${localTime.getFullYear()}
+• Horário: ${hour.toString().padStart(2, '0')}:${localTime.getMinutes().toString().padStart(2, '0')} (Brasília)
+• Período: ${hour < 6 ? '🌙 Madrugada' : hour < 12 ? '🌅 Manhã' : hour < 18 ? '☀️ Tarde' : '🌆 Noite'}
+• Estação: ${seasonContext}
 
-**Estatísticas (${weatherData.length} registros):**
-- Temp. Média: ${analysis.stats.avgTemp.toFixed(1)}°C | Mín: ${analysis.stats.minTemp.toFixed(1)}°C | Máx: ${analysis.stats.maxTemp.toFixed(1)}°C
-- Umidade Média: ${analysis.stats.avgHumidity.toFixed(0)}%
-- Vento Médio: ${analysis.stats.avgWind.toFixed(1)} km/h
-- Variação Térmica: ${analysis.stats.tempVariation.toFixed(1)}°C
+═══════════════════════════════════════════════════════
+🌡️ DADOS METEOROLÓGICOS EM TEMPO REAL
+═══════════════════════════════════════════════════════
 
-**Sua resposta deve incluir:**
-1. Um resumo criativo e envolvente do clima atual (2-3 frases)
-2. Previsão/tendência para as próximas horas baseada nos dados
-3. 2-3 dicas práticas personalizadas para o momento
-4. Um toque de personalidade (use emojis e linguagem amigável)
+TEMPERATURA
+• Atual: ${latest.temperature.toFixed(1)}°C
+• Sensação: ${analysis.feelsLike.toFixed(1)}°C ${analysis.feelsLike > latest.temperature ? '(↑ pela umidade)' : analysis.feelsLike < latest.temperature ? '(↓ pelo vento)' : ''}
+• Classificação: ${analysis.dayClassification} ${analysis.dayEmoji}
 
-Mantenha a resposta concisa (máximo 200 palavras) e útil para o dia a dia.
+UMIDADE E VENTO
+• Umidade: ${latest.humidity.toFixed(0)}%
+• Vento: ${latest.windspeed.toFixed(1)} km/h
+${latest.description ? `• Condição: ${latest.description}` : ''}
+${latest.pressure ? `• Pressão: ${latest.pressure} hPa` : ''}
+
+ÍNDICES
+• Conforto: ${analysis.comfortScore}/100 (${analysis.comfortLevel} ${analysis.comfortEmoji})
+• UV Estimado: ${analysis.uvIndex}
+• Tendência: ${analysis.tempTrend} ${analysis.trendEmoji}
+
+═══════════════════════════════════════════════════════
+📊 HISTÓRICO (${weatherData.length} medições)
+═══════════════════════════════════════════════════════
+• Mínima: ${analysis.stats.minTemp.toFixed(1)}°C
+• Média: ${analysis.stats.avgTemp.toFixed(1)}°C
+• Máxima: ${analysis.stats.maxTemp.toFixed(1)}°C
+• Amplitude: ${analysis.stats.tempVariation.toFixed(1)}°C
+• Umidade média: ${analysis.stats.avgHumidity.toFixed(0)}%
+
+═══════════════════════════════════════════════════════
+✨ CRIE UMA ANÁLISE ÉPICA COM AS SEGUINTES SEÇÕES:
+═══════════════════════════════════════════════════════
+
+## 🌤️ VISÃO GERAL
+Uma abertura IMPACTANTE e POÉTICA sobre o clima atual. Conecte com a identidade da cidade. Use metáforas criativas. Faça o leitor "sentir" o clima através das palavras.
+
+## 🏙️ ${latest.city.toUpperCase()} HOJE
+Contextualize o clima para a realidade local. Como isso afeta o dia a dia dos moradores? Relacione com atividades típicas da região. Mencione características únicas da cidade.
+
+## 📈 ANÁLISE TÉCNICA
+Explique os dados de forma acessível. O que cada número significa na prática? Compare com médias históricas/esperadas. Detalhe a sensação térmica e por que ela difere da temperatura real.
+
+## 🔮 PRÓXIMAS HORAS
+O que esperar baseado nas tendências? Como o clima deve evoluir? Alertas importantes ou mudanças previstas.
+
+## 💡 DICAS DO DIA
+• Vestuário ideal (seja específico!)
+• Atividades recomendadas x evitar
+• Cuidados com saúde
+• Dica especial para o período (${hour < 12 ? 'manhã' : hour < 18 ? 'tarde' : 'noite'})
+
+## 🎯 MOMENTO PERFEITO
+Qual o melhor horário hoje para: exercícios, passeios, trabalho ao ar livre?
+
+## 🌟 CURIOSIDADE
+Um fato interessante sobre o clima, a cidade, ou fenômeno meteorológico relevante.
+
+## ✨ MENSAGEM FINAL
+Encerramento inspirador e memorável. Conecte emocionalmente com o leitor.
+
+═══════════════════════════════════════════════════════
+IMPORTANTE:
+• Use emojis estrategicamente (nem demais, nem de menos)
+• Linguagem envolvente e acessível
+• Seja CRIATIVO e ÚNICO - evite clichês!
+• Personalize para ${latest.city}
+• Máximo 600 palavras
+═══════════════════════════════════════════════════════
     `.trim();
 
     const response = await this.openai!.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content:
-            'Você é um assistente meteorológico amigável, criativo e prático. Suas análises são precisas mas também envolventes e fáceis de entender.',
+          content: `Você é o "Mestre do Clima" - um meteorologista brasileiro famoso, carismático e apaixonado por ajudar as pessoas. Suas análises são:
+
+🎯 CARACTERÍSTICAS DO SEU ESTILO:
+• RICAS em detalhes contextuais e culturais
+• CRIATIVAS com metáforas e narrativas envolventes
+• PRÁTICAS com dicas realmente úteis
+• PERSONALIZADAS para cada cidade e momento
+• EDUCATIVAS mas nunca chatas
+• EMOCIONAIS - você se importa com o bem-estar do leitor
+
+🌎 CONHECIMENTO ESPECIAL:
+• Profundo conhecimento do interior de São Paulo
+• Entende a cultura e economia agrícola da região
+• Conhece as particularidades climáticas do noroeste paulista
+• Sabe como o clima afeta a vida rural e urbana
+
+💬 TOM DE VOZ:
+• Amigável mas profissional
+• Entusiasmado mas não exagerado
+• Como um amigo especialista
+• Sempre positivo, mesmo em condições adversas
+
+NUNCA seja genérico. Cada análise deve parecer feita exclusivamente para aquele momento e lugar.`,
         },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.8,
-      max_tokens: 400,
+      temperature: 0.85,
+      max_tokens: 1500,
     });
 
     return response.choices[0]?.message?.content || this.generateLocalInsights(weatherData, analysis);
+  }
+
+  private async generateSpecializedOpenAIInsights(
+    weatherData: WeatherData[],
+    analysis: WeatherAnalysis | null,
+  ): Promise<{
+    agriculture: string;
+    health: string;
+    sports: string;
+    energy: string;
+    solar: string;
+  }> {
+    if (!analysis || !this.openai) {
+      return {
+        agriculture: '',
+        health: '',
+        sports: '',
+        energy: '',
+        solar: '',
+      };
+    }
+
+    const latest = weatherData[0];
+
+    const prompt = `
+Com base nos dados climáticos de ${latest.city}:
+- Temperatura: ${latest.temperature.toFixed(1)}°C (Sensação: ${analysis.feelsLike.toFixed(1)}°C)
+- Umidade: ${latest.humidity.toFixed(0)}%
+- Vento: ${latest.windspeed.toFixed(1)} km/h
+
+Gere análises CURTAS e PRÁTICAS (máximo 100 palavras cada) para 5 setores:
+
+1. 🌾 AGRICULTURA: Impacto nas lavouras, irrigação, colheita. Foque na cana-de-açúcar (cultura principal de Penápolis) e outras culturas da região.
+
+2. 🏥 SAÚDE: Riscos respiratórios, hidratação, cuidados especiais. Considere idosos, crianças e pessoas com condições crônicas.
+
+3. ⚽ ESPORTES: Melhores atividades, horários ideais, precauções para atletas amadores e profissionais.
+
+4. ⚡ ENERGIA: Uso de ar-condicionado, economia de energia doméstica.
+
+5. ☀️ SOLAR (MUITO IMPORTANTE - A GDASH trabalha com energia fotovoltaica!): Análise detalhada do potencial de geração solar. Inclua:
+   - Estimativa de produção baseada nas condições atuais
+   - Impacto da nebulosidade/umidade na geração
+   - Recomendações para proprietários de usinas fotovoltaicas
+   - Dicas de manutenção considerando o clima
+   - Previsão de pico de produção para o dia
+
+Responda em formato JSON:
+{
+  "agriculture": "texto",
+  "health": "texto",
+  "sports": "texto",
+  "energy": "texto",
+  "solar": "texto"
+}
+    `.trim();
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Você é um consultor especializado que fornece análises práticas e diretas. Responda APENAS com JSON válido, sem markdown.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 800,
+      });
+
+      const content = response.choices[0]?.message?.content || '{}';
+      // Remove possíveis marcadores de código markdown
+      const jsonContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      return JSON.parse(jsonContent);
+    } catch (error) {
+      console.error('Erro ao gerar insights especializados:', error);
+      return {
+        agriculture: '',
+        health: '',
+        sports: '',
+        energy: '',
+        solar: '',
+      };
+    }
+  }
+
+  private getCityContext(city: string): string {
+    const contexts: Record<string, string> = {
+      'Penápolis': `
+🏛️ PERFIL DA CIDADE:
+• Região: Noroeste Paulista, interior de São Paulo
+• Apelido: "Terra da Cana de Açúcar"
+• População: ~62.000 habitantes
+• Altitude: 416 metros
+• Economia: Cana-de-açúcar, etanol, pecuária, agricultura
+• Clima: Tropical com verões quentes/úmidos e invernos secos
+• Bioma: Transição Mata Atlântica-Cerrado
+• Curiosidades:
+  - Importante polo sucroalcooleiro da região
+  - Sede de usinas de açúcar e etanol
+  - Cidade acolhedora com forte tradição rural
+  - Economia fortemente ligada ao agronegócio
+  - Região com vastos canaviais`,
+      
+      'São Paulo': `
+🏙️ PERFIL DA CIDADE:
+• Maior cidade do Brasil e América do Sul
+• População: ~12 milhões (região metropolitana: 22 milhões)
+• Altitude: 760 metros
+• Clima: Subtropical úmido com variações intensas
+• Características: "Cidade da garoa", microclimas diversos`,
+      
+      'Campinas': `
+🎓 PERFIL DA CIDADE:
+• Região: Interior de São Paulo (RMC)
+• População: ~1.2 milhão
+• Altitude: 680 metros
+• Economia: Tecnologia, universidades, indústria
+• Clima: Subtropical com amplitude térmica`,
+      
+      'Ribeirão Preto': `
+☕ PERFIL DA CIDADE:
+• Região: Nordeste Paulista
+• Apelido: "Capital do Agronegócio"
+• População: ~720.000
+• Economia: Agronegócio, saúde, serviços
+• Clima: Tropical, verões muito quentes`,
+    };
+
+    return contexts[city] || `
+📍 PERFIL DA CIDADE:
+• ${city} - Cidade brasileira
+• Clima típico da região
+• Dados sendo coletados para análises mais detalhadas`;
+  }
+
+  private getSeasonContext(month: number): string {
+    // Brasil - Hemisfério Sul
+    if (month >= 11 || month <= 1) return '☀️ Verão (época mais quente e chuvosa)';
+    if (month >= 2 && month <= 4) return '🍂 Outono (temperaturas amenas, menos chuva)';
+    if (month >= 5 && month <= 7) return '❄️ Inverno (seco, noites frias)';
+    return '🌸 Primavera (aquecendo, chuvas retornando)';
   }
 
   private generateLocalInsights(
@@ -642,8 +1211,8 @@ Mantenha a resposta concisa (máximo 200 palavras) e útil para o dia a dia.
     insights += analysis.narrative;
 
     // Pontuação de conforto
-    insights += `\n\n🎯 **Índice de Conforto:** ${analysis.comfortScore}/100 ${analysis.comfortEmoji}\n`;
-    insights += `_${analysis.comfortLevel}_ - `;
+    insights += `\n\n---\n\n🎯 **Índice de Conforto:** ${analysis.comfortScore}/100 ${analysis.comfortEmoji}\n`;
+    insights += `*${analysis.comfortLevel}* - `;
 
     if (analysis.comfortScore >= 70) {
       insights += 'Excelentes condições para atividades ao ar livre!';
@@ -657,22 +1226,33 @@ Mantenha a resposta concisa (máximo 200 palavras) e útil para o dia a dia.
     if (Math.abs(analysis.feelsLike - latest.temperature) > 2) {
       insights += `\n\n🌡️ **Sensação Térmica:** ${analysis.feelsLike.toFixed(1)}°C`;
       if (analysis.feelsLike > latest.temperature) {
-        insights += ' (mais quente devido à umidade)';
+        insights += ' *(mais quente devido à umidade)*';
       } else {
-        insights += ' (mais frio devido ao vento)';
+        insights += ' *(mais frio devido ao vento)*';
       }
     }
 
     // Índice UV
-    insights += `\n\n☀️ **Índice UV Estimado:** ${analysis.uvIndex}`;
+    insights += `\n\n☀️ **Índice UV:** ${analysis.uvIndex}`;
 
     // Recomendações
     if (analysis.recommendations.length > 0) {
-      insights += '\n\n📋 **Recomendações:**\n';
+      insights += '\n\n---\n\n📋 **Recomendações:**\n';
       analysis.recommendations.forEach((rec) => {
         insights += `• ${rec}\n`;
       });
     }
+
+    // Análise especializada resumida
+    if (analysis.specialized) {
+      insights += '\n\n---\n\n🎯 **Análises Especializadas:**\n';
+      insights += `• 🌾 Agricultura: ${analysis.specialized.agriculture.status}\n`;
+      insights += `• 🏥 Saúde: Risco respiratório ${analysis.specialized.health.respiratoryRisk.toLowerCase()}\n`;
+      insights += `• ⚽ Esportes: ${analysis.specialized.sports.bestTimeToday}\n`;
+      insights += `• ⚡ Ar-condicionado: ${analysis.specialized.energy.acRecommendation}\n`;
+    }
+
+    insights += '\n\n---\n*Análise gerada localmente. Configure a OpenAI para insights avançados com IA.*';
 
     return insights;
   }

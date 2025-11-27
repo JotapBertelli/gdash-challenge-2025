@@ -36,6 +36,14 @@ import {
   Download,
   Clock,
   Loader2,
+  Leaf,
+  Heart,
+  Activity,
+  Zap,
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
 } from 'lucide-react';
 import api from '../lib/api';
 import { authService } from '../lib/auth';
@@ -77,11 +85,37 @@ interface WeatherAnalysis {
   recommendations: string[];
 }
 
+interface SpecializedInsights {
+  agriculture: string;
+  health: string;
+  sports: string;
+  energy: string;
+  solar: string;
+}
+
+interface SolarAnalysis {
+  productionScore: number;
+  productionLevel: string;
+  estimatedEfficiency: number;
+  peakHours: string;
+  currentStatus: string;
+  irradianceLevel: string;
+  recommendations: string[];
+  alerts: string[];
+  dailyForecast: {
+    morning: number;
+    afternoon: number;
+    total: number;
+  };
+}
+
 interface InsightsResponse {
   insights: string;
   analysis: WeatherAnalysis | null;
+  specializedInsights?: SpecializedInsights;
   generatedAt: string;
-  source: 'ai' | 'local';
+  source: 'openai' | 'local';
+  model?: string;
 }
 
 // Função para obter ícone do clima
@@ -576,6 +610,8 @@ export default function Dashboard() {
   const [insightsData, setInsightsData] = useState<InsightsResponse | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showFullInsights, setShowFullInsights] = useState(false);
+  const [activeSpecialized, setActiveSpecialized] = useState<'agriculture' | 'health' | 'sports' | 'energy' | null>(null);
   const navigate = useNavigate();
 
   // Atualiza o relógio a cada segundo
@@ -891,6 +927,93 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Solar Energy Card - Destaque GDASH */}
+        <div className="bg-gradient-to-r from-orange-600 via-yellow-500 to-orange-500 rounded-3xl p-6 text-white mb-6 relative overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {[...Array(10)].map((_, i) => (
+                <circle key={i} cx={10 + i * 10} cy="50" r="30" fill="white" />
+              ))}
+            </svg>
+          </div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+                  <Sun className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">Energia Solar Fotovoltaica</h2>
+                  <p className="text-white/80 text-sm">Análise de potencial de geração em tempo real</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {/* Score de Produção */}
+              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 text-center">
+                <div className="text-4xl font-bold mb-1">
+                  {analysis?.specialized?.solar?.productionScore ?? '--'}
+                  <span className="text-lg">%</span>
+                </div>
+                <p className="text-sm text-white/80">Potencial Atual</p>
+              </div>
+
+              {/* Status */}
+              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 text-center">
+                <div className="text-lg font-bold mb-1">
+                  {analysis?.specialized?.solar?.productionLevel ?? 'Calculando...'}
+                </div>
+                <p className="text-sm text-white/80">Nível de Produção</p>
+              </div>
+
+              {/* Irradiância */}
+              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 text-center">
+                <div className="text-lg font-bold mb-1">
+                  {analysis?.specialized?.solar?.irradianceLevel ?? '--'}
+                </div>
+                <p className="text-sm text-white/80">Irradiação Solar</p>
+              </div>
+
+              {/* Pico do Dia */}
+              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 text-center">
+                <div className="text-lg font-bold mb-1">
+                  {analysis?.specialized?.solar?.peakHours ?? 'Calculando...'}
+                </div>
+                <p className="text-sm text-white/80">Pico de Produção</p>
+              </div>
+
+              {/* Eficiência */}
+              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 text-center">
+                <div className="text-4xl font-bold mb-1">
+                  {analysis?.specialized?.solar?.estimatedEfficiency ?? '--'}
+                  <span className="text-lg">%</span>
+                </div>
+                <p className="text-sm text-white/80">Eficiência Estimada</p>
+              </div>
+            </div>
+
+            {/* Status e Recomendações */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                📊 {analysis?.specialized?.solar?.currentStatus ?? 'Analisando...'}
+              </span>
+              {analysis?.specialized?.solar?.alerts?.map((alert, i) => (
+                <span key={i} className="px-3 py-1 bg-red-500/30 rounded-full text-sm">
+                  {alert}
+                </span>
+              ))}
+              {analysis?.specialized?.solar?.recommendations?.slice(0, 2).map((rec, i) => (
+                <span key={i} className="px-3 py-1 bg-green-500/30 rounded-full text-sm">
+                  {rec}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Chart Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Temperature Chart */}
@@ -962,6 +1085,182 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* AI Insights Section - Full Width */}
+        <div className="bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800 rounded-3xl p-6 text-white mb-6 border border-gray-600">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                <Brain className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  Análise Inteligente
+                  {insightsData?.source === 'openai' && (
+                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full flex items-center gap-1">
+                      <Cpu className="w-3 h-3" />
+                      OpenAI
+                    </span>
+                  )}
+                </h2>
+                <p className="text-gray-400 text-sm">
+                  {insightsData?.generatedAt 
+                    ? `Atualizado em ${new Date(insightsData.generatedAt).toLocaleString('pt-BR')}`
+                    : 'Carregando análise...'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={loadInsights}
+                disabled={loadingInsights}
+                className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-600 rounded-xl font-medium transition flex items-center gap-2"
+              >
+                {loadingInsights ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                {loadingInsights ? 'Gerando...' : 'Nova Análise'}
+              </button>
+              <button
+                onClick={() => setShowFullInsights(!showFullInsights)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-xl font-medium transition flex items-center gap-2"
+              >
+                {showFullInsights ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showFullInsights ? 'Resumir' : 'Expandir'}
+              </button>
+            </div>
+          </div>
+
+          {/* Main Insights Content */}
+          <div className={`prose prose-invert max-w-none ${showFullInsights ? '' : 'max-h-64 overflow-hidden relative'}`}>
+            {loadingInsights ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="w-12 h-12 animate-spin text-purple-400 mx-auto mb-4" />
+                  <p className="text-gray-400">Analisando dados climáticos com IA...</p>
+                  <p className="text-gray-500 text-sm mt-1">Isso pode levar alguns segundos</p>
+                </div>
+              </div>
+            ) : insightsData?.insights ? (
+              <div className="whitespace-pre-wrap text-gray-200 leading-relaxed">
+                {insightsData.insights.split('\n').map((line, i) => {
+                  // Formatar títulos com ##
+                  if (line.startsWith('## ')) {
+                    return (
+                      <h3 key={i} className="text-xl font-bold text-yellow-400 mt-6 mb-3 flex items-center gap-2">
+                        {line.replace('## ', '')}
+                      </h3>
+                    );
+                  }
+                  // Formatar linhas com **texto**
+                  if (line.includes('**')) {
+                    const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+                    return (
+                      <p key={i} className="mb-2" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+                    );
+                  }
+                  // Linhas normais
+                  if (line.trim()) {
+                    return <p key={i} className="mb-2">{line}</p>;
+                  }
+                  return <br key={i} />;
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Clique em "Nova Análise" para gerar insights com IA</p>
+              </div>
+            )}
+            {!showFullInsights && insightsData?.insights && (
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-800 to-transparent pointer-events-none" />
+            )}
+          </div>
+
+          {/* Specialized Insights Tabs */}
+          {insightsData?.specializedInsights && (
+            <div className="mt-6 pt-6 border-t border-gray-600">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                Análises Especializadas
+              </h3>
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                <button
+                  onClick={() => setActiveSpecialized(activeSpecialized === 'agriculture' ? null : 'agriculture')}
+                  className={`p-4 rounded-xl transition flex flex-col items-center gap-2 ${
+                    activeSpecialized === 'agriculture' 
+                      ? 'bg-green-500/20 border-2 border-green-500' 
+                      : 'bg-gray-800 hover:bg-gray-700 border-2 border-transparent'
+                  }`}
+                >
+                  <Leaf className="w-6 h-6 text-green-400" />
+                  <span className="text-sm font-medium">Agricultura</span>
+                </button>
+                <button
+                  onClick={() => setActiveSpecialized(activeSpecialized === 'health' ? null : 'health')}
+                  className={`p-4 rounded-xl transition flex flex-col items-center gap-2 ${
+                    activeSpecialized === 'health' 
+                      ? 'bg-red-500/20 border-2 border-red-500' 
+                      : 'bg-gray-800 hover:bg-gray-700 border-2 border-transparent'
+                  }`}
+                >
+                  <Heart className="w-6 h-6 text-red-400" />
+                  <span className="text-sm font-medium">Saúde</span>
+                </button>
+                <button
+                  onClick={() => setActiveSpecialized(activeSpecialized === 'sports' ? null : 'sports')}
+                  className={`p-4 rounded-xl transition flex flex-col items-center gap-2 ${
+                    activeSpecialized === 'sports' 
+                      ? 'bg-blue-500/20 border-2 border-blue-500' 
+                      : 'bg-gray-800 hover:bg-gray-700 border-2 border-transparent'
+                  }`}
+                >
+                  <Activity className="w-6 h-6 text-blue-400" />
+                  <span className="text-sm font-medium">Esportes</span>
+                </button>
+                <button
+                  onClick={() => setActiveSpecialized(activeSpecialized === 'energy' ? null : 'energy')}
+                  className={`p-4 rounded-xl transition flex flex-col items-center gap-2 ${
+                    activeSpecialized === 'energy' 
+                      ? 'bg-yellow-500/20 border-2 border-yellow-500' 
+                      : 'bg-gray-800 hover:bg-gray-700 border-2 border-transparent'
+                  }`}
+                >
+                  <Zap className="w-6 h-6 text-yellow-400" />
+                  <span className="text-sm font-medium">Energia</span>
+                </button>
+              </div>
+
+              {/* Active Specialized Content */}
+              {activeSpecialized && insightsData.specializedInsights[activeSpecialized] && (
+                <div className={`p-5 rounded-xl ${
+                  activeSpecialized === 'agriculture' ? 'bg-green-500/10 border border-green-500/30' :
+                  activeSpecialized === 'health' ? 'bg-red-500/10 border border-red-500/30' :
+                  activeSpecialized === 'sports' ? 'bg-blue-500/10 border border-blue-500/30' :
+                  'bg-yellow-500/10 border border-yellow-500/30'
+                }`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    {activeSpecialized === 'agriculture' && <Leaf className="w-5 h-5 text-green-400" />}
+                    {activeSpecialized === 'health' && <Heart className="w-5 h-5 text-red-400" />}
+                    {activeSpecialized === 'sports' && <Activity className="w-5 h-5 text-blue-400" />}
+                    {activeSpecialized === 'energy' && <Zap className="w-5 h-5 text-yellow-400" />}
+                    <h4 className="font-semibold">
+                      {activeSpecialized === 'agriculture' && 'Impacto na Agricultura'}
+                      {activeSpecialized === 'health' && 'Recomendações de Saúde'}
+                      {activeSpecialized === 'sports' && 'Atividades Esportivas'}
+                      {activeSpecialized === 'energy' && 'Gestão de Energia'}
+                    </h4>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                    {insightsData.specializedInsights[activeSpecialized]}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Data Table */}
