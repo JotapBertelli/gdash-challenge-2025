@@ -24,9 +24,7 @@
 
 ## 📹 Vídeo Demonstrativo
 
-> **Link do vídeo:** [YouTube - GDASH Challenge 2025](INSERIR_LINK_DO_VIDEO_AQUI)
-> 
-> ⚠️ **Substitua o link acima pelo seu vídeo do YouTube (não listado)**
+> 🎬 **Link do vídeo:** [YouTube - GDASH Challenge 2025](https://youtu.be/9MQqKodZIF0)
 
 ---
 
